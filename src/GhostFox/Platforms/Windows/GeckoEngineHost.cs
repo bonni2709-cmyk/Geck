@@ -71,7 +71,7 @@ internal sealed class GeckoEngineHost : IBrowserEngineHost, IEngineSwitcher
                     is not Microsoft.UI.Xaml.Window window || window.Content is not Microsoft.UI.Xaml.UIElement root)
                 return;
 
-            var point = element.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(0, 0));
+            var point = element.TransformToVisual(root).TransformPoint(new global::Windows.Foundation.Point(0, 0));
             var scale = element.XamlRoot?.RasterizationScale ?? 1.0;
             var x = (int)(point.X * scale);
             var y = (int)(point.Y * scale);

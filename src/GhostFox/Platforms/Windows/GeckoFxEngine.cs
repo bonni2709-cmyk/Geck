@@ -69,7 +69,7 @@ internal sealed class GeckoFxEngine : IEngine
     {
         try
         {
-            using var context = new AutoJSContext(_browser.Window.JSContext);
+            using var context = new AutoJSContext(_browser.Window); // GeckoFX 60: AutoJSContext принимает GeckoWindow
             context.EvaluateScript(script, out string result);
             return Task.FromResult<string?>(result);
         }
