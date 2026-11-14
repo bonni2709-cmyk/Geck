@@ -12,7 +12,8 @@
     <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net8.0-android</TargetFrameworks>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetFrameworkIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 
-    <OutputType>WinExe</OutputType>
+    <OutputType Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">WinExe</OutputType>
+    <OutputType Condition="'$(TargetFramework)' == 'net8.0-android'">Library</OutputType>
     <RootNamespace>GhostFox</RootNamespace>
     <UseMaui>true</UseMaui>
     <SingleProject>true</SingleProject>
