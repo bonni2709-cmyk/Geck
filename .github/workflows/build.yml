@@ -42,8 +42,15 @@ jobs:
       - name: Inspect GeckoFX package (diagnostics)
         shell: pwsh
         run: |
-          $pkg = Get-ChildItem "$env:USERPROFILE\.nuget\packages\geckofx60.64" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 80 FullName
-          $pkg | Format-Table -AutoSize | Out-String | Write-Host
+          # Файлы пакета выводим как ::warning, чтобы они были видны в аннотациях прогона.
+          Get-ChildItem "$env:USERPROFILE\.nuget\packages\geckofx60.64" -Recurse -File -ErrorAction SilentlyContinue |
+            Select-Object -First 60 | ForEach-Object { Write-Host "::warning title=GeckoPkg::$($_.FullName.Replace($env:USERPROFILE, '~'))" }
+          $assets = "src/GhostFox/obj/project.assets.json"
+          if (Test-Path $assets) {
+            $json = Get-Content $assets -Raw | ConvertFrom-Json
+            $targets = $json.targets.PSObject.Properties.Name
+            Write-Host "::warning title=AssetsTargets::$($targets -join ', ')"
+          }
 
       - name: Publish (unpackaged WinUI, self-contained)
         run: >
