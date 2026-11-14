@@ -13,17 +13,17 @@
             <Color x:Key="GfAccent">#7C4DFF</Color>
 
             <Style TargetType="Button">
-                <Setter Property="BackgroundColor" Value="{StaticResource GfSurfaceAlt}" />
-                <Setter Property="TextColor" Value="{StaticResource GfText}" />
+                <Setter Property="BackgroundColor" Value="{DynamicResource GfSurfaceAlt}" />
+                <Setter Property="TextColor" Value="{DynamicResource GfText}" />
                 <Setter Property="CornerRadius" Value="6" />
                 <Setter Property="Padding" Value="10,6" />
             </Style>
             <Style TargetType="Entry">
-                <Setter Property="TextColor" Value="{StaticResource GfText}" />
-                <Setter Property="PlaceholderColor" Value="{StaticResource GfTextDim}" />
+                <Setter Property="TextColor" Value="{DynamicResource GfText}" />
+                <Setter Property="PlaceholderColor" Value="{DynamicResource GfTextDim}" />
             </Style>
             <Style TargetType="Label">
-                <Setter Property="TextColor" Value="{StaticResource GfText}" />
+                <Setter Property="TextColor" Value="{DynamicResource GfText}" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

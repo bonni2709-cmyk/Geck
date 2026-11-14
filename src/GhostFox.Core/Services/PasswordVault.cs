@@ -67,6 +67,17 @@ public sealed class PasswordVault
         await PersistAsync(salt, ct).ConfigureAwait(false);
     }
 
+    public async Task<bool> RemoveAsync(string site, string username, CancellationToken ct = default)
+    {
+        EnsureUnlocked();
+        var removed = _entries.RemoveAll(e => e.Site == site && e.Username == username) > 0;
+        if (!removed) return false;
+        var salt = Convert.FromBase64String(
+            (JsonSerializer.Deserialize<VaultFile>(await File.ReadAllTextAsync(_filePath, ct).ConfigureAwait(false))!).Salt);
+        await PersistAsync(salt, ct).ConfigureAwait(false);
+        return true;
+    }
+
     public void Lock() { if (_key != null) CryptographicOperations.ZeroMemory(_key); _key = null; _entries = new(); }
 
     private async Task PersistAsync(byte[] salt, CancellationToken ct)

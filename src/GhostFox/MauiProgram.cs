@@ -19,7 +19,8 @@ public static class MauiProgram
         var profileDir = Path.Combine(FileSystem.AppDataDirectory, "profile");
         var data = new BrowserDataService(new JsonStore(profileDir));
         builder.Services.AddSingleton(data);
-        builder.Services.AddSingleton(new PrivacyBlocklist());
+        builder.Services.AddSingleton(new AdBlockEngine());
+        builder.Services.AddSingleton(sp => new FilterSubscriptionService(profileDir, sp.GetRequiredService<AdBlockEngine>()));
         builder.Services.AddSingleton<TabManager>();
         builder.Services.AddSingleton(new DownloadService());
         builder.Services.AddSingleton(new PasswordVault(Path.Combine(profileDir, "vault.json")));

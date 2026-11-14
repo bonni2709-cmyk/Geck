@@ -14,8 +14,12 @@ public partial class MainPage : ContentPage
     private readonly IBrowserEngineHost _engineHost;
     private readonly BrowserDataService _data;
     private readonly TabManager _tabs;
-    private readonly PrivacyBlocklist _blocklist;
+    private readonly AdBlockEngine _adblock;
+    private readonly FilterSubscriptionService _filters;
+    private readonly PasswordVault _vault;
     private readonly DownloadService _downloads;
+    private readonly GestureDrawable _gestureDrawable = new();
+    private readonly List<(double X, double Y)> _gesturePoints = new();
 
     private readonly Dictionary<Guid, IEngine> _engines = new();
     private BrowserSettings _settings = new();
@@ -23,14 +27,18 @@ public partial class MainPage : ContentPage
     private bool _initialized;
 
     public MainPage(IBrowserEngineHost engineHost, BrowserDataService data, TabManager tabs,
-                    PrivacyBlocklist blocklist, DownloadService downloads)
+                    AdBlockEngine adblock, FilterSubscriptionService filters,
+                    PasswordVault vault, DownloadService downloads)
     {
         InitializeComponent();
         NavigationPage.SetHasNavigationBar(this, false);
+        GesturePad.Drawable = _gestureDrawable;
         _engineHost = engineHost;
         _data = data;
         _tabs = tabs;
-        _blocklist = blocklist;
+        _adblock = adblock;
+        _filters = filters;
+        _vault = vault;
         _downloads = downloads;
         _tabs.Changed += (_, _) => RefreshTabList();
         _downloads.Changed += (_, item) =>
@@ -44,6 +52,13 @@ public partial class MainPage : ContentPage
         _initialized = true;
 
         _settings = await _data.LoadSettingsAsync();
+        ThemeApplier.Apply(_settings);
+
+        // Модуль 2: фильтры блокировщика — из кэша сразу, обновление в фоне если кэш старше недели.
+        _filters.LoadFromCache();
+        var updatedAt = _filters.ReadUpdatedAt();
+        if (updatedAt == null || DateTimeOffset.Now - updatedAt > TimeSpan.FromDays(7))
+            _ = UpdateFiltersInBackgroundAsync();
 
         // Модуль 3: восстановление сессии после вылета.
         var session = await _data.LoadSessionAsync();
@@ -106,7 +121,7 @@ public partial class MainPage : ContentPage
         engine.Navigating += (_, e) =>
         {
             // Модуль 2: блокировщик трекеров/рекламы на уровне запроса главной страницы и подресурсов.
-            if (_settings.BlockTrackersAndAds && _blocklist.ShouldBlock(e.Url))
+            if (_settings.BlockTrackersAndAds && _adblock.ShouldBlock(e.Url))
             {
                 e.Cancel = true;
                 e.Decision = NavigationDecision.BlockedByPrivacyFilter;
@@ -156,10 +171,52 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(_settings.CustomCss))
-                await engine.InjectUserCssAsync(_settings.CustomCss);
+            var url = engine.CurrentUrl ?? string.Empty;
+            var css = UserCssService.BuildCssFor(url, _settings.CustomCss, _settings.SiteCssRules);
+            if (_settings.BlockCosmeticFilters)
+            {
+                var cosmetic = _adblock.BuildCosmeticCss(url);
+                if (cosmetic.Length > 0) css = css + "\n" + cosmetic;
+            }
+            if (!string.IsNullOrWhiteSpace(css))
+                await engine.InjectUserCssAsync(css);
+
+            if (_settings.ResistFingerprinting)
+                await engine.EvaluateScriptAsync(FingerprintNoise.NoiseScript);
+
+            await TryAutofillAsync(engine, url);
         }
         catch { /* страница могла уже смениться */ }
+    }
+
+    /// <summary>Автозаполнение из сейфа, если он разблокирован и есть запись для этого хоста.</summary>
+    private async Task TryAutofillAsync(IEngine engine, string url)
+    {
+        if (!_vault.IsUnlocked) return;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return;
+        var entry = _vault.Entries.FirstOrDefault(en =>
+            Uri.TryCreate(en.Site, UriKind.Absolute, out var s) &&
+            string.Equals(s.Host, uri.Host, StringComparison.OrdinalIgnoreCase));
+        if (entry != null)
+            await engine.EvaluateScriptAsync(AutofillScript.BuildFillScript(entry.Username, entry.Password));
+    }
+
+    private async Task UpdateFiltersInBackgroundAsync()
+    {
+        try
+        {
+            var status = await _filters.UpdateAsync(_settings.FilterSubscriptions);
+            MainThread.BeginInvokeOnMainThread(() =>
+                StatusLabel.Text = $"🛡 filters: {status.TotalRules} rules" + (status.Error != null ? $" (update error: {status.Error})" : ""));
+        }
+        catch { /* сеть недоступна — остаёмся на кэше/встроенном списке */ }
+    }
+
+    private string FilterStatusText()
+    {
+        var s = _filters.CurrentStatus();
+        return $"Rules: {s.TotalRules} (network {_adblock.NetworkRuleCount}, cosmetic {_adblock.CosmeticRuleCount})" +
+               (s.UpdatedAt != null ? $"\nUpdated: {s.UpdatedAt:yyyy-MM-dd HH:mm}" : "\nNever updated (built-in list active)");
     }
 
     private async Task StartDownloadAsync(string url)
@@ -234,7 +291,8 @@ public partial class MainPage : ContentPage
     private async void OnMenuClicked(object sender, EventArgs e)
     {
         var action = await DisplayActionSheet("GhostFox", "Cancel", null,
-            "Reader mode", "Settings", "Toggle incognito", "Clear private data");
+            "Reader mode", "Passwords", "Draw gesture", "Import bookmarks (.html)",
+            "Export data", "Settings", "Toggle incognito", "Clear private data");
         switch (action)
         {
             case "Reader mode" when ActiveEngine is { } engine:
@@ -245,8 +303,31 @@ public partial class MainPage : ContentPage
                 {
                     _settings = s;
                     await _data.SaveSettingsAsync(s);
+                    ThemeApplier.Apply(s);
+                    _gestureDrawable.Stroke = Color.FromArgb(ThemeCatalog.Get(s.ThemeName, s.AccentColorHex).Accent);
                     foreach (var eng in _engines.Values) eng.ApplyPrivacySettings(s);
-                }));
+                },
+                async () =>
+                {
+                    var status = await _filters.UpdateAsync(_settings.FilterSubscriptions);
+                    return FilterStatusText() + (status.Error != null ? $"\nLast error: {status.Error}" : "");
+                },
+                FilterStatusText()));
+                break;
+            case "Passwords":
+                await Navigation.PushModalAsync(new VaultPage(_vault));
+                break;
+            case "Draw gesture":
+                _gesturePoints.Clear();
+                _gestureDrawable.Points.Clear();
+                GesturePad.IsVisible = true;
+                StatusLabel.Text = "✏ draw a gesture: ← back, → forward, ↑ reload, ↓ new tab, ↓→ close tab";
+                break;
+            case "Import bookmarks (.html)":
+                await ImportBookmarksAsync();
+                break;
+            case "Export data":
+                await ExportDataAsync();
                 break;
             case "Toggle incognito":
                 _settings.Incognito = !_settings.Incognito;
@@ -254,9 +335,98 @@ public partial class MainPage : ContentPage
                 break;
             case "Clear private data":
                 _data.WipePrivateData();
-                StatusLabel.Text = "private data wiped";
+                foreach (var eng in _engines.Values) await eng.ClearPrivateDataAsync();
+                StatusLabel.Text = "private data wiped (history, session, cookies)";
                 break;
         }
+    }
+
+    // ---------- Жесты (Модуль 2) ----------
+
+    private void OnGesturePan(object sender, PanUpdatedEventArgs e)
+    {
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _gesturePoints.Clear();
+                _gestureDrawable.Points.Clear();
+                _gesturePoints.Add((0, 0));
+                _gestureDrawable.Points.Add(new PointF(200, 200));
+                break;
+            case GestureStatus.Running:
+                _gesturePoints.Add((e.TotalX, e.TotalY));
+                _gestureDrawable.Points.Add(new PointF((float)e.TotalX + 200, (float)e.TotalY + 200));
+                GesturePad.Invalidate();
+                break;
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                GesturePad.IsVisible = false;
+                var gesture = GestureRecognizer.Recognize(_gesturePoints);
+                var action = GestureRecognizer.ResolveAction(gesture, _settings.GestureMap);
+                StatusLabel.Text = action != null ? $"gesture '{gesture}' -> {action}" : $"gesture '{gesture}' not recognized";
+                if (action != null) ExecuteGestureAction(action);
+                break;
+        }
+    }
+
+    private void ExecuteGestureAction(string action)
+    {
+        switch (action)
+        {
+            case "back": ActiveEngine?.GoBack(); break;
+            case "forward": ActiveEngine?.GoForward(); break;
+            case "reload": ActiveEngine?.Reload(); break;
+            case "home": ActiveEngine?.Navigate(_settings.HomePage); break;
+            case "newtab": OnNewTabClicked(this, EventArgs.Empty); break;
+            case "closetab":
+                if (_tabs.ActiveTab is { } tab)
+                {
+                    if (_engines.Remove(tab.Id, out var eng)) eng.Dispose();
+                    _tabs.CloseTab(tab.Id);
+                    if (_tabs.ActiveTab is { } next) ActivateTab(next);
+                }
+                break;
+            case "reader": _ = ActiveEngine?.EvaluateScriptAsync(ReaderMode.ExtractArticleScript); break;
+            case "scrolltop": _ = ActiveEngine?.EvaluateScriptAsync("window.scrollTo(0,0); 'ok'"); break;
+        }
+    }
+
+    // ---------- Импорт/экспорт (Модуль 2) ----------
+
+    private async Task ImportBookmarksAsync()
+    {
+        try
+        {
+            var file = await Microsoft.Maui.Storage.FilePicker.Default.PickAsync(new Microsoft.Maui.Storage.PickOptions { PickerTitle = "Bookmarks HTML (Firefox/Chrome export)" });
+            if (file == null) return;
+            await using var stream = await file.OpenReadAsync();
+            using var reader = new StreamReader(stream);
+            var parsed = new DataTransferService().ParseBookmarksHtml(await reader.ReadToEndAsync());
+            var existing = await _data.LoadBookmarksAsync();
+            var known = new HashSet<string>(existing.Select(b => b.Url));
+            existing.AddRange(parsed.Where(b => known.Add(b.Url)));
+            await _data.SaveBookmarksAsync(existing);
+            StatusLabel.Text = $"imported {parsed.Count} bookmarks ({existing.Count} total)";
+        }
+        catch (Exception ex) { await DisplayAlert("Import", ex.Message, "OK"); }
+    }
+
+    private async Task ExportDataAsync()
+    {
+        try
+        {
+            var transfer = new DataTransferService();
+            var dir = Path.Combine(FileSystem.AppDataDirectory, "exports");
+            Directory.CreateDirectory(dir);
+            var bookmarks = await _data.LoadBookmarksAsync();
+            var history = await _data.LoadHistoryAsync();
+            var jsonPath = Path.Combine(dir, "ghostfox-export.json");
+            var htmlPath = Path.Combine(dir, "bookmarks.html");
+            await File.WriteAllTextAsync(jsonPath, transfer.ExportProfileJson(bookmarks, history, _settings));
+            await File.WriteAllTextAsync(htmlPath, transfer.ExportBookmarksHtml(bookmarks));
+            await DisplayAlert("Export", $"Profile JSON:\n{jsonPath}\n\nBookmarks HTML:\n{htmlPath}", "OK");
+        }
+        catch (Exception ex) { await DisplayAlert("Export", ex.Message, "OK"); }
     }
 }
 

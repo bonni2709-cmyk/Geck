@@ -66,5 +66,6 @@ public sealed class PlaceholderEngine : IEngine
         => Task.CompletedTask;
 
     public void ApplyPrivacySettings(BrowserSettings settings) { }
+    public Task ClearPrivateDataAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     public void Dispose() { }
 }

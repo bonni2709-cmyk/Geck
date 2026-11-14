@@ -83,4 +83,7 @@ public interface IEngine : IDisposable
 
     /// <summary>Применить настройки приватности к живому профилю движка.</summary>
     void ApplyPrivacySettings(Models.BrowserSettings settings);
+
+    /// <summary>Очистка приватных данных движка: куки, кэш, хранилища (инкогнито/выход).</summary>
+    Task ClearPrivateDataAsync(CancellationToken cancellationToken = default);
 }

@@ -3,15 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="GhostFox.MainPage"
              Title="GhostFox"
-             BackgroundColor="{StaticResource GfBackground}">
+             BackgroundColor="{DynamicResource GfBackground}">
 
     <!-- Корень: [вертикальные вкладки | основная колонка] -->
     <Grid ColumnDefinitions="230,*">
 
         <!-- ===== МОДУЛЬ 3: вертикальные вкладки ===== -->
-        <VerticalStackLayout Grid.Column="0" BackgroundColor="{StaticResource GfSurface}" Padding="8" Spacing="6">
+        <VerticalStackLayout Grid.Column="0" BackgroundColor="{DynamicResource GfSurface}" Padding="8" Spacing="6">
             <Label Text="🦊 GHOSTFOX" FontAttributes="Bold" FontSize="16" />
-            <Label x:Name="EngineLabel" Text="engine: …" FontSize="10" TextColor="{StaticResource GfTextDim}" />
+            <Label x:Name="EngineLabel" Text="engine: …" FontSize="10" TextColor="{DynamicResource GfTextDim}" />
             <Button Text="+ New Tab" Clicked="OnNewTabClicked" />
             <CollectionView x:Name="TabsView" SelectionMode="Single" SelectionChanged="OnTabSelectionChanged">
                 <CollectionView.ItemTemplate>
@@ -30,7 +30,7 @@
         <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto">
 
             <!-- Тулбар навигации -->
-            <HorizontalStackLayout Grid.Row="0" Padding="8" Spacing="6" BackgroundColor="{StaticResource GfSurface}">
+            <HorizontalStackLayout Grid.Row="0" Padding="8" Spacing="6" BackgroundColor="{DynamicResource GfSurface}">
                 <Button x:Name="BackButton" Text="←" Clicked="OnBackClicked" />
                 <Button x:Name="ForwardButton" Text="→" Clicked="OnForwardClicked" />
                 <Button Text="⟳" Clicked="OnReloadClicked" />
@@ -43,19 +43,24 @@
             </HorizontalStackLayout>
 
             <!-- Прогресс загрузки -->
-            <ProgressBar x:Name="LoadProgress" Grid.Row="1" Progress="0" ProgressColor="{StaticResource GfAccent}"
+            <ProgressBar x:Name="LoadProgress" Grid.Row="1" Progress="0" ProgressColor="{DynamicResource GfAccent}"
                          HeightRequest="3" IsVisible="False" />
 
             <!-- Хост движка: сюда платформа встраивает нативный контрол (Windows: GeckoWebBrowser через HWND). -->
             <Grid Grid.Row="2" x:Name="EngineHost" BackgroundColor="#000000">
+                <GraphicsView x:Name="GesturePad" IsVisible="False" BackgroundColor="Transparent">
+                    <GraphicsView.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnGesturePan" />
+                    </GraphicsView.GestureRecognizers>
+                </GraphicsView>
                 <Label x:Name="PlaceholderLabel" IsVisible="False" Margin="24" FontSize="14"
                        Text="Gecko runtime (папка Firefox64) не найден рядом с exe — работает PlaceholderEngine. Положите рантайм Firefox 60 ESR x64 в папку приложения (CI делает это автоматически) и перезапустите GhostFox." />
             </Grid>
 
             <!-- Статус-бар -->
-            <HorizontalStackLayout Grid.Row="3" Padding="8,4" Spacing="12" BackgroundColor="{StaticResource GfSurface}">
-                <Label x:Name="StatusLabel" Text="Ready" FontSize="11" TextColor="{StaticResource GfTextDim}" />
-                <Label x:Name="BlockedLabel" Text="" FontSize="11" TextColor="{StaticResource GfAccent}" />
+            <HorizontalStackLayout Grid.Row="3" Padding="8,4" Spacing="12" BackgroundColor="{DynamicResource GfSurface}">
+                <Label x:Name="StatusLabel" Text="Ready" FontSize="11" TextColor="{DynamicResource GfTextDim}" />
+                <Label x:Name="BlockedLabel" Text="" FontSize="11" TextColor="{DynamicResource GfAccent}" />
             </HorizontalStackLayout>
         </Grid>
     </Grid>

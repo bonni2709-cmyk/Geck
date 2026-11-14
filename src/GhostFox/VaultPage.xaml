@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GhostFox.VaultPage"
+             Title="Password vault"
+             BackgroundColor="{DynamicResource GfBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="🔐 Password vault (AES-256-GCM)" FontSize="18" FontAttributes="Bold" />
+            <Label x:Name="VaultStatusLabel" Text="Locked" TextColor="{DynamicResource GfTextDim}" />
+
+            <Entry x:Name="MasterPasswordEntry" Placeholder="Master password" IsPassword="True" />
+            <Button x:Name="UnlockButton" Text="Unlock / Create vault" Clicked="OnUnlockClicked" />
+            <Button x:Name="LockButton" Text="Lock" Clicked="OnLockClicked" IsVisible="False" />
+
+            <VerticalStackLayout x:Name="VaultContent" IsVisible="False" Spacing="10">
+                <Button Text="+ Add password" Clicked="OnAddClicked" />
+                <Button Text="🎲 Generate password" Clicked="OnGenerateClicked" />
+                <Label x:Name="GeneratedLabel" Text="" />
+                <CollectionView x:Name="EntriesView">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto,Auto" Padding="6">
+                                <VerticalStackLayout>
+                                    <Label Text="{Binding Site}" FontAttributes="Bold" />
+                                    <Label Text="{Binding Username}" FontSize="12" TextColor="{DynamicResource GfTextDim}" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1" Text="Copy" CommandParameter="{Binding}" Clicked="OnCopyClicked" />
+                                <Button Grid.Column="2" Text="✕" CommandParameter="{Binding}" Clicked="OnDeleteClicked" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+
+            <Button Text="Close" Clicked="OnCloseClicked" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

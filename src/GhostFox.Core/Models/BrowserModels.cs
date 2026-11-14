@@ -1,3 +1,5 @@
+using GhostFox.Core.Services;
+
 namespace GhostFox.Core.Models;
 
 /// <summary>Пользовательская поисковая система (Модуль 2: можно добавлять свои).</summary>
@@ -41,10 +43,20 @@ public sealed class BrowserSettings
 
     // --- Кастомизация ---
     public bool DarkTheme { get; set; } = true;
+    /// <summary>Имя темы из ThemeCatalog: Dark / Light / Midnight (Модуль 2).</summary>
+    public string ThemeName { get; set; } = "Dark";
     public string AccentColorHex { get; set; } = "#7C4DFF";
     public bool VerticalTabs { get; set; } = true;
     /// <summary>Пользовательский CSS, инжектится в каждую страницу (Модуль 2).</summary>
     public string CustomCss { get; set; } = string.Empty;
+    /// <summary>Per-site CSS правила (Модуль 2).</summary>
+    public List<SiteCssRule> SiteCssRules { get; set; } = new();
+    /// <summary>Жест (например "DR") -> действие (например "closetab") (Модуль 2).</summary>
+    public Dictionary<string, string> GestureMap { get; set; } = Services.GestureRecognizer.DefaultMap();
+    /// <summary>Подписки фильтров блокировщика (Модуль 2).</summary>
+    public List<string> FilterSubscriptions { get; set; } = new(Services.FilterSubscriptionService.DefaultSubscriptions);
+    /// <summary>Косметические фильтры (##селекторы из списков) в дополнение к сетевым.</summary>
+    public bool BlockCosmeticFilters { get; set; } = true;
 
     public SearchEngine GetDefaultSearchEngine() =>
         SearchEngines.FirstOrDefault(e => e.Name == DefaultSearchEngineName)

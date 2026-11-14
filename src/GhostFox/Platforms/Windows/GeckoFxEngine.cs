@@ -96,5 +96,11 @@ internal sealed class GeckoFxEngine : IEngine
         catch { /* prefs применяются best-effort: движок мог ещё не подняться */ }
     }
 
+    public Task ClearPrivateDataAsync(CancellationToken cancellationToken = default)
+    {
+        try { _browser.DeleteCookies(); } catch { /* движок мог ещё не подняться */ }
+        return Task.CompletedTask;
+    }
+
     public void Dispose() => _browser.Dispose();
 }
