@@ -31,14 +31,16 @@
 
     <!-- GeckoFX — обёртка над .NET Framework; AssetTargetFallback разрешает её потребление из net8.0-windows. -->
     <AssetTargetFallback>$(AssetTargetFallback);net461;net462;net47</AssetTargetFallback>
-    <!-- WinForms нужен как тип контрола GeckoWebBrowser (хостится в WinUI через HWND, см. Platforms/Windows). -->
-    <UseWindowsForms>true</UseWindowsForms>
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- GeckoFX 60.0.56 = Firefox/Gecko 60 ESR, x64. Рантайм (папка Firefox64) CI докладывает рядом с exe. -->
     <PackageReference Include="Geckofx60.64" Version="60.0.56" />
+    <!-- GeckoWebBrowser — WinForms-контрол. UseWindowsForms=true НЕЛЬЗЯ: WindowsDesktop SDK начнёт
+         обрабатывать MAUI XAML как WPF Page (ошибка MC6000). Поэтому только FrameworkReference:
+         даёт System.Windows.Forms для компиляции/рантайма, не включая WPF XAML-пайплайн. -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
   </ItemGroup>
 
   <ItemGroup>
