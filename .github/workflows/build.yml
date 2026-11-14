@@ -59,12 +59,14 @@ jobs:
           }
 
       - name: Publish (unpackaged WinUI, self-contained)
-        run: >
-          dotnet publish src/GhostFox/GhostFox.csproj
-          -f net8.0-windows10.0.19041.0
-          -c Release -r win-x64 --self-contained true
-          -p:WindowsPackageType=None
-          -o publish/GhostFox
+        shell: pwsh
+        run: |
+          dotnet publish src/GhostFox/GhostFox.csproj -f net8.0-windows10.0.19041.0 -c Release -r win-x64 --self-contained true -p:WindowsPackageType=None -o publish/GhostFox *>&1 | Tee-Object publish.log
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content publish.log | Select-String -Pattern 'error|Error' | Select-Object -First 20 |
+              ForEach-Object { $s = $_.Line -replace '%','%25' -replace "`r?`n",'%0A'; Write-Host "::warning title=PublishError::$s" }
+            exit 1
+          }
 
       # Рантайм Gecko: GeckoFX 60 работает поверх Firefox 60 ESR x64 (папка с xul.dll).
       # Если пакет GeckoFX сам не положил Firefox64 в publish — докладываем из официального архива Mozilla.
