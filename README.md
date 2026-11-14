@@ -47,6 +47,8 @@
 
 ## Сборка
 
+✅ **Статус CI: зелёный** (тесты Core + публикация Windows x64 + артефакт `GhostFox-win-x64`, ~174 МБ с рантаймом Gecko).
+
 Локально в песочнице сборка **не выполняется** (нет SDK, лимит 128 МБ) — собирается GitHub Actions:
 
 - `.github/workflows/build.yml`: тесты Core (ubuntu) → публикация Windows x64 (windows-latest) → докладывание рантайма Firefox 60 ESR → артефакт **`GhostFox-win-x64`**.

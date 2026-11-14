@@ -19,8 +19,12 @@
 
 ## Ключевые решения и риски
 
-- **GeckoFX 60 — .NET Framework-обёртка.** Потребление из net8.0-windows разрешено через
-  `AssetTargetFallback` (net461–net47). Это осознанный технический долг Модуля 1:
+- **GeckoFX 60 — .NET Framework-обёртка.** NuGet не выбирает её `lib/net45` ассеты для net8.0
+  (проверено в CI: в project.assets.json только build), поэтому `Geckofx-Core.dll`/`Geckofx-Winforms.dll`
+  подключены явными `Reference` из NuGet-кэша, а пакет оставлен поставщиком файлов (`PrivateAssets=All`).
+  Ещё два грабля, закрытых в CI: `UseWindowsForms=true` включает WPF XAML-пайплайн и ломает WinUI XAML
+  (MC6000) — вместо него прямой `FrameworkReference` на WindowsDesktop; MAUI 8.0.3 ломает unpackaged
+  self-contained публикацию — запинен `Microsoft.Maui.Controls` 8.0.100. Это осознанный технический долг Модуля 1:
   если рантайм .NET 8 откажется грузить сборки GeckoFX, план Б — вынести Gecko-хост
   в отдельный .NET Framework 4.8 процесс и общаться с MAUI-шеллом по именованному каналу
   (контракт `IEngine` при этом не меняется, меняется только транспорт).
