@@ -33,8 +33,6 @@
     <AssetTargetFallback>$(AssetTargetFallback);net461;net462;net47</AssetTargetFallback>
     <!-- WinForms нужен как тип контрола GeckoWebBrowser (хостится в WinUI через HWND, см. Platforms/Windows). -->
     <UseWindowsForms>true</UseWindowsForms>
-    <!-- Пакет Geckofx60.64 содержит также Geckofx-Wpf и требует WPF-сборки в списке референсов. -->
-    <UseWPF>true</UseWPF>
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
   </PropertyGroup>
 
@@ -46,5 +44,14 @@
   <ItemGroup>
     <ProjectReference Include="..\GhostFox.Core\GhostFox.Core.csproj" />
   </ItemGroup>
+
+  <!-- Пакет Geckofx60.64 тащит за собой Geckofx-Wpf.dll, которой нужны PresentationCore/
+       PresentationFramework. WPF-вариант контрола нам не нужен (используем WinForms-контрол),
+       поэтому вырезаем эту сборку из референсов ДО ResolveAssemblyReferences. -->
+  <Target Name="RemoveGeckoWpfReference" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Geckofx-Wpf'" />
+    </ItemGroup>
+  </Target>
 
 </Project>
