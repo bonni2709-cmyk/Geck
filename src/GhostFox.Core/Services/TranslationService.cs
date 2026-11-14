@@ -37,7 +37,7 @@ public sealed class TranslationService
     }
 
     /// <summary>Разбивка на чанки <=450 символов по границам предложений (лимит q у MyMemory).</summary>
-    internal static List<string> Chunk(string text, int maxLength = 450)
+    public static List<string> Chunk(string text, int maxLength = 450)
     {
         var chunks = new List<string>();
         var sentences = Regex.Split(text, @"(?<=[.!?…])\s+");
