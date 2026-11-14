@@ -138,5 +138,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GhostFox-android
-          path: src/GhostFox/bin/Release/net8.0-android/**
+          path: src/GhostFox/bin/Release/net8.0-android/publish/*.apk
           retention-days: 14
