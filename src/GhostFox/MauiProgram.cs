@@ -28,7 +28,7 @@ public static class MauiProgram
 #if WINDOWS
         builder.Services.AddSingleton<IBrowserEngineHost, Platforms.Windows.GeckoEngineHost>();
 #elif ANDROID
-        builder.Services.AddSingleton<IBrowserEngineHost, Platforms.Android.GeckoViewEngineHost>();
+        builder.Services.AddSingleton<IBrowserEngineHost, Platforms.Android.AndroidPlaceholderEngineHost>();
 #else
         builder.Services.AddSingleton<IBrowserEngineHost, PlaceholderEngineHost>();
 #endif
@@ -40,6 +40,6 @@ public static class MauiProgram
     /// <summary>Фолбэк для платформ без нативного движка: UI живёт, страницы — заглушка.</summary>
     private sealed class PlaceholderEngineHost : IBrowserEngineHost
     {
-        public IEngine CreateAndAttach(object hostContainer, Core.Models.BrowserSettings settings) => new PlaceholderEngine();
+        public IEngine CreateAndAttach(object hostContainer, Core.Models.BrowserSettings settings, bool isOverlay = false) => new PlaceholderEngine();
     }
 }

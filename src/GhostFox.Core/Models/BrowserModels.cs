@@ -25,6 +25,8 @@ public sealed class SearchEngine
 public sealed class BrowserSettings
 {
     public string HomePage { get; set; } = "https://duckduckgo.com/";
+    /// <summary>Целевой язык встроенного переводчика (Модуль 3).</summary>
+    public string TranslateTargetLanguage { get; set; } = "ru";
     public string DefaultSearchEngineName { get; set; } = "DuckDuckGo";
     public List<SearchEngine> SearchEngines { get; set; } = SearchEngine.BuiltIn();
 

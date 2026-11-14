@@ -8,26 +8,34 @@ namespace GhostFox.Platforms.Windows;
 
 /// <summary>
 /// Встраивает WinForms-контрол GeckoWebBrowser в MAUI/WinUI3 окно:
-/// SetParent(childHwnd, mainWindowHwnd) + периодическая синхронизация позиции
-/// с MAUI Grid-плейсхолдером (EngineHost в MainPage). На вкладку — свой контрол,
-/// виден только активный (изоляция вкладок на уровне отдельных GeckoWebBrowser).
+/// SetParent(childHwnd, mainWindowHwnd) + синхронизация позиции каждого контрола
+/// со своим MAUI-контейнером. Контейнеров может быть несколько: основной (вкладки)
+/// и PiP-оверлей (Модуль 3). Виден только активный движок вкладок + видимые оверлеи.
 /// </summary>
 internal sealed class GeckoEngineHost : IBrowserEngineHost, IEngineSwitcher
 {
-    private readonly List<GeckoFxEngine> _engines = new();
-    private GeckoFxEngine? _visible;
-    private Grid? _placeholder;
+    private sealed class Entry
+    {
+        public required GeckoFxEngine Engine;
+        public required Microsoft.UI.Xaml.FrameworkElement Element;
+        public bool IsOverlay;
+        public bool OverlayVisible = true;
+    }
+
+    private readonly List<Entry> _entries = new();
+    private GeckoFxEngine? _visibleMain;
     private DispatcherQueueTimer? _syncTimer;
 
-    public IEngine CreateAndAttach(object hostContainer, BrowserSettings settings)
+    public IEngine CreateAndAttach(object hostContainer, BrowserSettings settings, bool isOverlay = false)
     {
-        _placeholder = hostContainer as Grid;
         if (!GeckoRuntime.EnsureInitialized())
+            return new PlaceholderEngine();
+        if (hostContainer is not Grid grid || grid.Handler?.PlatformView is not Microsoft.UI.Xaml.FrameworkElement element)
             return new PlaceholderEngine();
 
         var engine = new GeckoFxEngine(settings);
-        _engines.Add(engine);
-        _visible ??= engine;
+        _entries.Add(new Entry { Engine = engine, Element = element, IsOverlay = isOverlay });
+        if (!isOverlay) _visibleMain ??= engine;
         EnsureParented(engine);
         StartSyncLoop();
         return engine;
@@ -35,11 +43,25 @@ internal sealed class GeckoEngineHost : IBrowserEngineHost, IEngineSwitcher
 
     public void ShowEngine(IEngine? engine)
     {
-        _visible = engine as GeckoFxEngine;
-        foreach (var e in _engines)
-            if (e.NativeControl.IsHandleCreated)
-                ShowWindow(e.NativeControl.Handle, e == _visible ? SW_SHOW : SW_HIDE);
+        _visibleMain = engine as GeckoFxEngine;
+        ApplyVisibility();
     }
+
+    public void SetOverlayVisibility(IEngine engine, bool visible)
+    {
+        var entry = _entries.FirstOrDefault(e => ReferenceEquals(e.Engine, engine));
+        if (entry != null) entry.OverlayVisible = visible;
+        ApplyVisibility();
+    }
+
+    private void ApplyVisibility()
+    {
+        foreach (var e in _entries)
+            if (e.Engine.NativeControl.IsHandleCreated)
+                ShowWindow(e.Engine.NativeControl.Handle, IsEntryVisible(e) ? SW_SHOW : SW_HIDE);
+    }
+
+    private bool IsEntryVisible(Entry e) => e.IsOverlay ? e.OverlayVisible : ReferenceEquals(e.Engine, _visibleMain);
 
     private void EnsureParented(GeckoFxEngine engine)
     {
@@ -52,18 +74,17 @@ internal sealed class GeckoEngineHost : IBrowserEngineHost, IEngineSwitcher
 
     private void StartSyncLoop()
     {
-        if (_syncTimer != null || _placeholder?.Handler?.PlatformView is not Microsoft.UI.Xaml.FrameworkElement element)
-            return;
+        if (_syncTimer != null) return;
         var queue = DispatcherQueue.GetForCurrentThread();
         if (queue == null) return;
         _syncTimer = queue.CreateTimer();
         _syncTimer.Interval = TimeSpan.FromMilliseconds(200);
         _syncTimer.IsRepeating = true;
-        _syncTimer.Tick += (_, _) => SyncBounds(element);
+        _syncTimer.Tick += (_, _) => SyncBounds();
         _syncTimer.Start();
     }
 
-    private void SyncBounds(Microsoft.UI.Xaml.FrameworkElement element)
+    private void SyncBounds()
     {
         try
         {
@@ -71,21 +92,22 @@ internal sealed class GeckoEngineHost : IBrowserEngineHost, IEngineSwitcher
                     is not Microsoft.UI.Xaml.Window window || window.Content is not Microsoft.UI.Xaml.UIElement root)
                 return;
 
-            var point = element.TransformToVisual(root).TransformPoint(new global::Windows.Foundation.Point(0, 0));
-            var scale = element.XamlRoot?.RasterizationScale ?? 1.0;
-            var x = (int)(point.X * scale);
-            var y = (int)(point.Y * scale);
-            var w = Math.Max(0, (int)(element.ActualWidth * scale));
-            var h = Math.Max(0, (int)(element.ActualHeight * scale));
-
-            foreach (var engine in _engines)
+            foreach (var entry in _entries)
             {
-                if (!engine.NativeControl.IsHandleCreated) EnsureParented(engine);
-                if (engine == _visible)
-                    SetWindowPos(engine.NativeControl.Handle, IntPtr.Zero, x, y, w, h,
-                        SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
-                else
-                    ShowWindow(engine.NativeControl.Handle, SW_HIDE);
+                if (!entry.Engine.NativeControl.IsHandleCreated) EnsureParented(entry.Engine);
+                if (!IsEntryVisible(entry))
+                {
+                    ShowWindow(entry.Engine.NativeControl.Handle, SW_HIDE);
+                    continue;
+                }
+                var element = entry.Element;
+                var point = element.TransformToVisual(root).TransformPoint(new global::Windows.Foundation.Point(0, 0));
+                var scale = element.XamlRoot?.RasterizationScale ?? 1.0;
+                SetWindowPos(entry.Engine.NativeControl.Handle, IntPtr.Zero,
+                    (int)(point.X * scale), (int)(point.Y * scale),
+                    Math.Max(0, (int)(element.ActualWidth * scale)),
+                    Math.Max(0, (int)(element.ActualHeight * scale)),
+                    SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
             }
         }
         catch { /* окно могло быть в процессе закрытия */ }

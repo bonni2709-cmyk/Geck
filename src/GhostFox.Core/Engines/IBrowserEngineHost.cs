@@ -9,5 +9,6 @@ public interface IBrowserEngineHost
 {
     /// <param name="hostContainer">Платформенный контейнер (на Windows — Microsoft.Maui.Controls.Grid).</param>
     /// <param name="settings">Текущие настройки, применяемые к движку сразу после создания.</param>
-    IEngine CreateAndAttach(object hostContainer, Models.BrowserSettings settings);
+    /// <param name="isOverlay">true для PiP-движка: он живёт поверх страницы и не участвует в переключении вкладок.</param>
+    IEngine CreateAndAttach(object hostContainer, Models.BrowserSettings settings, bool isOverlay = false);
 }

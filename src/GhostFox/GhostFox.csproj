@@ -6,9 +6,11 @@
     когда будет подключён GeckoView (см. docs/ANDROID_GECKOVIEW.md) — UI и Core при этом не меняются.
   -->
   <PropertyGroup>
-    <TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
-    <!-- Android (Модуль 3): раскомментировать после подключения GeckoView binding:
-    <TargetFrameworks>$(TargetFrameworks);net8.0-android</TargetFrameworks> -->
+    <!-- Модуль 3: Android подключён. На Windows доступны оба TFM, на Linux/macOS — только Android
+         (Windows TFM собирается исключительно на Windows). -->
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">net8.0-windows10.0.19041.0;net8.0-android</TargetFrameworks>
+    <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net8.0-android</TargetFrameworks>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetFrameworkIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 
     <OutputType>WinExe</OutputType>
     <RootNamespace>GhostFox</RootNamespace>
@@ -25,9 +27,9 @@
     <!-- Неупакованное (unpackaged) WinUI-приложение: обычный .exe без MSIX — проще для CI и портативной раздачи. -->
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <Platforms>x64</Platforms>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
+    <Platforms Condition="$([MSBuild]::IsOSPlatform('Windows'))">x64</Platforms>
+    <RuntimeIdentifiers Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifiers>
 
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
   </PropertyGroup>
@@ -36,14 +38,15 @@
     <!-- GeckoFX 60.0.56 = Firefox/Gecko 60 ESR, x64. Пакет нужен как поставка DLL и рантайма:
          NuGet НЕ выбирает его lib/net45 ассеты для net8.0 (в project.assets.json только build),
          поэтому сами сборки подключаем явными Reference ниже. -->
-    <PackageReference Include="Geckofx60.64" Version="60.0.56" PrivateAssets="All" ExcludeAssets="build;contentfiles" />
+    <PackageReference Include="Geckofx60.64" Version="60.0.56" PrivateAssets="All" ExcludeAssets="build;contentfiles"
+                      Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
     <!-- Явная версия MAUI: workload по умолчанию ставит 8.0.3, где сломана unpackaged
          self-contained публикация (GenerateAppManifestFromAppx ищет MsixContent\AppxManifest.xml). -->
     <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.100" />
     <!-- GeckoWebBrowser — WinForms-контрол. UseWindowsForms=true НЕЛЬЗЯ: WindowsDesktop SDK начнёт
          обрабатывать MAUI XAML как WPF Page (ошибка MC6000). Поэтому только FrameworkReference:
          даёт System.Windows.Forms для компиляции/рантайма, не включая WPF XAML-пайплайн. -->
-    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,7 +54,7 @@
   </ItemGroup>
 
   <!-- Явные референсы на GeckoFX из restored NuGet-кэша (см. комментарий у PackageReference). -->
-  <ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0-windows10.0.19041.0'">
     <Reference Include="Geckofx-Core">
       <HintPath>$(NuGetPackageRoot)geckofx60.64\60.0.56\lib\net45\Geckofx-Core.dll</HintPath>
     </Reference>

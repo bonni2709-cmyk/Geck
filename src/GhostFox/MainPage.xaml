@@ -53,6 +53,15 @@
                         <PanGestureRecognizer PanUpdated="OnGesturePan" />
                     </GraphicsView.GestureRecognizers>
                 </GraphicsView>
+                <Grid x:Name="PipHost" IsVisible="False" WidthRequest="360" HeightRequest="235"
+                      HorizontalOptions="End" VerticalOptions="End" Margin="14"
+                      BackgroundColor="{DynamicResource GfSurface}" RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Padding="6,2">
+                        <Label Text="📺 PiP" FontSize="12" VerticalOptions="Center" />
+                        <Button Grid.Column="1" Text="✕" FontSize="11" Padding="6,2" Clicked="OnPipCloseClicked" />
+                    </Grid>
+                    <Grid x:Name="PipEngineHost" Grid.Row="1" BackgroundColor="#000000" />
+                </Grid>
                 <Label x:Name="PlaceholderLabel" IsVisible="False" Margin="24" FontSize="14"
                        Text="Gecko runtime (папка Firefox64) не найден рядом с exe — работает PlaceholderEngine. Положите рантайм Firefox 60 ESR x64 в папку приложения (CI делает это автоматически) и перезапустите GhostFox." />
             </Grid>

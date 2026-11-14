@@ -13,12 +13,17 @@ public sealed class DownloadService
 
     public event EventHandler<DownloadItem>? Changed;
 
+    private readonly List<DownloadItem> _items = new();
+    /// <summary>Все загрузки текущей сессии приложения (Модуль 3: экран загрузок).</summary>
+    public IReadOnlyList<DownloadItem> Items => _items;
+
     public async Task<DownloadItem> DownloadAsync(string url, string destinationDirectory, CancellationToken ct = default)
     {
         Directory.CreateDirectory(destinationDirectory);
         var fileName = GetFileName(url);
         var finalPath = Path.Combine(destinationDirectory, fileName);
         var item = new DownloadItem { Url = url, FilePath = finalPath };
+        _items.Insert(0, item);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _running[item.Id] = linked;
 

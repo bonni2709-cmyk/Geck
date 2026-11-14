@@ -9,18 +9,22 @@ public static class ReaderMode
 {
     public const string ExtractArticleScript = """
         (() => {
-          const candidates = [...document.querySelectorAll('article, main, [role=main], .post, .article, .content')];
-          let best = document.body, bestScore = 0;
-          for (const el of candidates) {
-            const text = (el.innerText || '').trim();
-            const score = text.length - (el.querySelectorAll('a').length * 40);
-            if (score > bestScore) { bestScore = score; best = el; }
-          }
+          document.querySelectorAll('nav, aside, footer, header, form, iframe, [role=navigation], .ad, .ads, .sidebar, .menu, .share').forEach(e => e.remove());
+          const candidates = [...document.querySelectorAll('article, main, [role=main], .post, .article, .content, .entry')];
+          let best = null, bestScore = 0;
+          const score = (el) => {
+            let s = 0;
+            el.querySelectorAll('p').forEach(p => { const len = (p.innerText || '').trim().length; if (len > 80) s += len; });
+            s -= el.querySelectorAll('a').length * 25;
+            return s;
+          };
+          for (const el of candidates) { const s = score(el); if (s > bestScore) { bestScore = s; best = el; } }
+          if (!best || bestScore < 120) best = document.body;
           const title = document.title || 'Reader';
-          const html = best ? best.innerHTML : document.body.innerHTML;
           document.head.innerHTML = '<meta charset="utf-8"><title>' + title + '</title>' +
-            '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.7;font-size:19px;background:#111;color:#eee}img{max-width:100%}a{color:#8ab4ff}</style>';
-          document.body.innerHTML = '<h1>' + title + '</h1>' + html;
+            '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.75;font-size:19px;background:#111;color:#eee}img{max-width:100%}a{color:#8ab4ff}pre,code{white-space:pre-wrap}</style>';
+          document.body.innerHTML = '<h1>' + title + '</h1>' + best.innerHTML;
+          window.scrollTo(0, 0);
           return title;
         })();
         """;

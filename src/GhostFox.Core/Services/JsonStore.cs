@@ -57,6 +57,33 @@ public sealed class BrowserDataService
     public Task<List<Bookmark>> LoadBookmarksAsync() => _store.LoadAsync("bookmarks.json", () => new List<Bookmark>());
     public Task SaveBookmarksAsync(List<Bookmark> b) => _store.SaveAsync("bookmarks.json", b);
 
+    public string ProfileDirectory => _store.ProfileDirectory;
+
+    // --- Именованные сессии (Модуль 3) ---
+    private static string SafeName(string name) =>
+        string.Concat(name.Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_'));
+
+    public async Task<List<string>> ListNamedSessionsAsync() =>
+        await _store.LoadAsync("sessions-index.json", () => new List<string>());
+
+    public async Task SaveNamedSessionAsync(string name, SessionState state)
+    {
+        await _store.SaveAsync($"session-{SafeName(name)}.json", state);
+        var index = await ListNamedSessionsAsync();
+        if (!index.Contains(name)) { index.Add(name); await _store.SaveAsync("sessions-index.json", index); }
+    }
+
+    public Task<SessionState> LoadNamedSessionAsync(string name) =>
+        _store.LoadAsync($"session-{SafeName(name)}.json", () => new SessionState());
+
+    public async Task DeleteNamedSessionAsync(string name)
+    {
+        try { var path = _store.PathFor($"session-{SafeName(name)}.json"); if (File.Exists(path)) File.Delete(path); } catch { }
+        var index = await ListNamedSessionsAsync();
+        index.Remove(name);
+        await _store.SaveAsync("sessions-index.json", index);
+    }
+
     /// <summary>Инкогнито/очистка при выходе: кэш и куки чистит движок, здесь — наши JSON.</summary>
     public void WipePrivateData()
     {

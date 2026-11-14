@@ -19,6 +19,8 @@ public partial class MainPage : ContentPage
     private readonly PasswordVault _vault;
     private readonly DownloadService _downloads;
     private readonly GestureDrawable _gestureDrawable = new();
+    private IEngine? _pipEngine;
+    private static readonly TranslationService Translator = new();
     private readonly List<(double X, double Y)> _gesturePoints = new();
 
     private readonly Dictionary<Guid, IEngine> _engines = new();
@@ -157,6 +159,7 @@ public partial class MainPage : ContentPage
             RefreshTabList();
             _ = PersistSessionAsync();
             _ = ApplyPerPageEnhancementsAsync(engine);
+            if (e.Success) _ = RecordHistoryAsync(e.Url, tab.Title);
         });
         engine.TitleChanged += (_, _) => MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -217,6 +220,20 @@ public partial class MainPage : ContentPage
         var s = _filters.CurrentStatus();
         return $"Rules: {s.TotalRules} (network {_adblock.NetworkRuleCount}, cosmetic {_adblock.CosmeticRuleCount})" +
                (s.UpdatedAt != null ? $"\nUpdated: {s.UpdatedAt:yyyy-MM-dd HH:mm}" : "\nNever updated (built-in list active)");
+    }
+
+    private async Task RecordHistoryAsync(string url, string title)
+    {
+        if (_settings.Incognito) return;
+        if (!url.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return;
+        try
+        {
+            var history = await _data.LoadHistoryAsync();
+            history.Add(new HistoryEntry { Url = url, Title = title, VisitedAt = DateTimeOffset.Now });
+            if (history.Count > 500) history.RemoveRange(0, history.Count - 500);
+            await _data.SaveHistoryAsync(history);
+        }
+        catch { /* история — не критичный путь */ }
     }
 
     private async Task StartDownloadAsync(string url)
@@ -291,7 +308,9 @@ public partial class MainPage : ContentPage
     private async void OnMenuClicked(object sender, EventArgs e)
     {
         var action = await DisplayActionSheet("GhostFox", "Cancel", null,
-            "Reader mode", "Passwords", "Draw gesture", "Import bookmarks (.html)",
+            "Reader mode", "Translate page", "Show original", "Picture in picture", "Find in page",
+            "Passwords", "Downloads", "Library", "Save session as...", "Restore session...",
+            "Draw gesture", "Import bookmarks (.html)",
             "Export data", "Settings", "Toggle incognito", "Clear private data");
         switch (action)
         {
@@ -313,6 +332,41 @@ public partial class MainPage : ContentPage
                     return FilterStatusText() + (status.Error != null ? $"\nLast error: {status.Error}" : "");
                 },
                 FilterStatusText()));
+                break;
+            case "Translate page":
+                await TranslatePageAsync();
+                break;
+            case "Show original":
+                ActiveEngine?.Reload();
+                break;
+            case "Picture in picture":
+                await TogglePipAsync();
+                break;
+            case "Find in page":
+                await FindInPageAsync();
+                break;
+            case "Downloads":
+                await Navigation.PushModalAsync(new DownloadsPage(_downloads));
+                break;
+            case "Library":
+                await Navigation.PushModalAsync(new LibraryPage(_data, url =>
+                {
+                    var tab = _tabs.OpenTab(url);
+                    ActivateTab(tab, navigateIfNew: true);
+                }));
+                break;
+            case "Save session as...":
+            {
+                var name = await DisplayPromptAsync("Sessions", "Session name");
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    await _data.SaveNamedSessionAsync(name.Trim(), _tabs.ToSession());
+                    StatusLabel.Text = $"💾 session '{name}' saved";
+                }
+                break;
+            }
+            case "Restore session...":
+                await RestoreNamedSessionAsync();
                 break;
             case "Passwords":
                 await Navigation.PushModalAsync(new VaultPage(_vault));
@@ -391,6 +445,106 @@ public partial class MainPage : ContentPage
         }
     }
 
+    // ---------- Модуль 3: переводчик, PiP, поиск, сессии ----------
+
+    private async Task TranslatePageAsync()
+    {
+        if (ActiveEngine is not { } engine) return;
+        try
+        {
+            StatusLabel.Text = "🌐 extracting text…";
+            var json = await engine.EvaluateScriptAsync(PageTranslationScripts.ExtractTextScript);
+            if (string.IsNullOrWhiteSpace(json)) { StatusLabel.Text = "🌐 nothing to translate"; return; }
+            var texts = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+            var target = _settings.TranslateTargetLanguage;
+            var source = TranslationService.DetectLanguage(string.Join(" ", texts.Take(5)));
+            if (source == target) { StatusLabel.Text = $"🌐 page already in '{target}'"; return; }
+
+            var map = new Dictionary<string, string>();
+            var done = 0;
+            foreach (var text in texts.Where(x => x.Length >= 3).Distinct())
+            {
+                map[text] = await Translator.TranslateAsync(text, target, source);
+                StatusLabel.Text = $"🌐 translating {++done}/{texts.Count}…";
+            }
+            var result = await engine.EvaluateScriptAsync(
+                PageTranslationScripts.BuildApplyScript(System.Text.Json.JsonSerializer.Serialize(map)));
+            StatusLabel.Text = $"🌐 translated ({result}) {source} → {target}";
+        }
+        catch (Exception ex) { StatusLabel.Text = "🌐 translate failed: " + ex.Message; }
+    }
+
+    private async Task FindInPageAsync()
+    {
+        if (ActiveEngine is not { } engine) return;
+        var term = await DisplayPromptAsync("Find in page", "Text to find");
+        if (string.IsNullOrWhiteSpace(term)) return;
+        var result = await engine.EvaluateScriptAsync(FindInPage.BuildFindScript(term));
+        StatusLabel.Text = result == "found" ? $"🔎 found: {term}" : $"🔎 not found: {term}";
+    }
+
+    private async Task TogglePipAsync()
+    {
+        if (_pipEngine != null) { ClosePip(); return; }
+        if (ActiveEngine is not { } engine) return;
+        var json = await engine.EvaluateScriptAsync(PipService.ExtractVideoScript);
+        var error = PipService.ErrorOf(json);
+        if (error != null || PipService.ParseInfo(json) is not { } info || string.IsNullOrWhiteSpace(info.Source))
+        {
+            await DisplayAlert("Picture in picture",
+                error == "streaming-mse"
+                    ? "This video is streamed via MSE/blob (e.g. YouTube) — it has no direct file URL, so PiP is impossible in Gecko 60."
+                    : "No video with a direct file URL found on this page.", "OK");
+            return;
+        }
+        var file = Path.Combine(FileSystem.CacheDirectory, "ghostfox-pip.html");
+        await File.WriteAllTextAsync(file, PipService.BuildPipHtml(info));
+        _pipEngine = _engineHost.CreateAndAttach(PipEngineHost, _settings, isOverlay: true);
+        if (!_pipEngine.IsNativeEngineAvailable)
+        {
+            _pipEngine = null;
+            await DisplayAlert("Picture in picture", "Gecko runtime not available (placeholder engine).", "OK");
+            return;
+        }
+        PipHost.IsVisible = true;
+        if (_engineHost is IEngineSwitcher switcher) switcher.SetOverlayVisibility(_pipEngine, true);
+        _pipEngine.Navigate(new Uri(file).AbsoluteUri);
+        StatusLabel.Text = "📺 PiP: " + (info.PageTitle ?? info.Source);
+    }
+
+    private void ClosePip()
+    {
+        if (_pipEngine == null) return;
+        if (_engineHost is IEngineSwitcher switcher) switcher.SetOverlayVisibility(_pipEngine, false);
+        _pipEngine.Dispose();
+        _pipEngine = null;
+        PipHost.IsVisible = false;
+    }
+
+    private void OnPipCloseClicked(object sender, EventArgs e) => ClosePip();
+
+    private async Task RestoreNamedSessionAsync()
+    {
+        var names = await _data.ListNamedSessionsAsync();
+        if (names.Count == 0) { StatusLabel.Text = "no saved sessions"; return; }
+        var chosen = await DisplayActionSheet("Restore session", "Cancel", "Delete session…", names.ToArray());
+        if (string.IsNullOrWhiteSpace(chosen) || chosen == "Cancel") return;
+        if (chosen == "Delete session…")
+        {
+            var toDelete = await DisplayActionSheet("Delete session", "Cancel", null, names.ToArray());
+            if (!string.IsNullOrWhiteSpace(toDelete) && toDelete != "Cancel")
+                await _data.DeleteNamedSessionAsync(toDelete);
+            return;
+        }
+        var state = await _data.LoadNamedSessionAsync(chosen);
+        foreach (var eng in _engines.Values) eng.Dispose();
+        _engines.Clear();
+        ClosePip();
+        _tabs.Restore(state);
+        if (_tabs.ActiveTab is { } tab) ActivateTab(tab, navigateIfNew: true);
+        StatusLabel.Text = $"💾 session '{chosen}' restored";
+    }
+
     // ---------- Импорт/экспорт (Модуль 2) ----------
 
     private async Task ImportBookmarksAsync()
@@ -434,6 +588,7 @@ public partial class MainPage : ContentPage
 public interface IEngineSwitcher
 {
     void ShowEngine(IEngine? engine);
+    void SetOverlayVisibility(IEngine engine, bool visible);
 }
 
 /// <summary>Отображаемая строка вкладки (заголовок + индикатор загрузки).</summary>
