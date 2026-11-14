@@ -47,6 +47,12 @@
     <ProjectReference Include="..\GhostFox.Core\GhostFox.Core.csproj" />
   </ItemGroup>
 
+  <!-- SelfContained-таргеты WindowsAppSDK требуют AppxManifest даже для unpackaged-сборки
+       (генерируют из него app.manifest), а MAUI при WindowsPackageType=None его не подхватывает. -->
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <AppxManifest Include="Platforms\Windows\Package.appxmanifest" />
+  </ItemGroup>
+
   <!-- Явные референсы на GeckoFX из restored NuGet-кэша (см. комментарий у PackageReference). -->
   <ItemGroup>
     <Reference Include="Geckofx-Core">
