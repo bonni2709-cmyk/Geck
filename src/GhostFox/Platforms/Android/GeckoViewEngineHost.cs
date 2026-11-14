@@ -12,7 +12,7 @@ namespace GhostFox.Platforms.Android;
 /// </summary>
 public sealed class GeckoViewEngineHost : IBrowserEngineHost
 {
-    public IEngine CreateAndAttach(object hostContainer, BrowserSettings settings)
+    public IEngine CreateAndAttach(object hostContainer, BrowserSettings settings, bool isOverlay = false)
         => throw new NotImplementedException(
             "GeckoView is not wired yet (Module 3). See docs/ANDROID_GECKOVIEW.md.");
 }
