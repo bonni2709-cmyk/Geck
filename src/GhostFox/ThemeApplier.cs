@@ -18,7 +18,7 @@ public static class ThemeApplier
         res["GfText"] = Color.FromArgb(palette.Text);
         res["GfTextDim"] = Color.FromArgb(palette.TextDim);
         res["GfAccent"] = Color.FromArgb(palette.Accent);
-        app.RequestedTheme = palette.Name == "Light" ? AppTheme.Light : AppTheme.Dark;
+        app.UserAppTheme = palette.Name == "Light" ? AppTheme.Light : AppTheme.Dark;
         settings.DarkTheme = palette.Name != "Light";
     }
 }

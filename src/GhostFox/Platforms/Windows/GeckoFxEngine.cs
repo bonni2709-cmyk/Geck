@@ -98,7 +98,14 @@ internal sealed class GeckoFxEngine : IEngine
 
     public Task ClearPrivateDataAsync(CancellationToken cancellationToken = default)
     {
-        try { _browser.DeleteCookies(); } catch { /* движок мог ещё не подняться */ }
+        try
+        {
+            // В GeckoFX 60 нет DeleteCookies на контроле — идём напрямую в nsICookieManager.
+            var cookies = Xpcom.GetService<nsICookieManager>("@mozilla.org/cookiemanager;1");
+            cookies = Xpcom.QueryInterface<nsICookieManager>(cookies);
+            cookies.RemoveAll();
+        }
+        catch { /* движок мог ещё не подняться */ }
         return Task.CompletedTask;
     }
 

@@ -361,8 +361,8 @@ public partial class MainPage : ContentPage
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
                 GesturePad.IsVisible = false;
-                var gesture = GestureRecognizer.Recognize(_gesturePoints);
-                var action = GestureRecognizer.ResolveAction(gesture, _settings.GestureMap);
+                var gesture = Core.Services.GestureRecognizer.Recognize(_gesturePoints);
+                var action = Core.Services.GestureRecognizer.ResolveAction(gesture, _settings.GestureMap);
                 StatusLabel.Text = action != null ? $"gesture '{gesture}' -> {action}" : $"gesture '{gesture}' not recognized";
                 if (action != null) ExecuteGestureAction(action);
                 break;
