@@ -1,0 +1,80 @@
+name: GhostFox CI
+
+# Сборка живёт ТОЛЬКО в облаке: в песочнице нет .NET SDK и лимит артефактов 128 МБ,
+# поэтому NuGet/SDK остаются на раннере GitHub Actions.
+
+on:
+  push:
+    branches: [main, "arena/**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  core-tests:
+    name: Core logic tests (ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Test GhostFox.Core
+        run: dotnet test tests/GhostFox.Core.Tests/GhostFox.Core.Tests.csproj -c Release
+
+  build-windows:
+    name: Windows x64 (MAUI + GeckoFX)
+    runs-on: windows-latest
+    needs: core-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install MAUI Windows workload
+        run: dotnet workload install maui-windows --skip-manifest-update
+
+      - name: Restore
+        run: dotnet restore src/GhostFox/GhostFox.csproj -r win-x64
+
+      # Диагностика пакета GeckoFX: показываем, что реально приехало с NuGet (рантайм/целевые фреймворки).
+      - name: Inspect GeckoFX package (diagnostics)
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem "$env:USERPROFILE\.nuget\packages\geckofx60.64" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 80 FullName
+          $pkg | Format-Table -AutoSize | Out-String | Write-Host
+
+      - name: Publish (unpackaged WinUI, self-contained)
+        run: >
+          dotnet publish src/GhostFox/GhostFox.csproj
+          -f net8.0-windows10.0.19041.0
+          -c Release -r win-x64 --self-contained true
+          -p:WindowsPackageType=None
+          -o publish/GhostFox
+
+      # Рантайм Gecko: GeckoFX 60 работает поверх Firefox 60 ESR x64 (папка с xul.dll).
+      # Если пакет GeckoFX сам не положил Firefox64 в publish — докладываем из официального архива Mozilla.
+      - name: Bundle Gecko runtime (Firefox 60.9 ESR x64)
+        shell: pwsh
+        run: |
+          $pub = "publish/GhostFox"
+          $runtime = Join-Path $pub "Firefox64"
+          if (Test-Path (Join-Path $runtime "xul.dll")) { Write-Host "Runtime already in publish output"; exit 0 }
+          New-Item -ItemType Directory -Force $runtime | Out-Null
+          $zip = "$env:RUNNER_TEMP\firefox60.zip"
+          # Официальный архив Mozilla с бинарями Firefox 60.9.0esr win64 (без инсталлятора)
+          Invoke-WebRequest "https://ftp.mozilla.org/pub/firefox/releases/60.9.0esr/win64/en-US/Firefox%20Setup%2060.9.0esr.exe" -OutFile "$env:RUNNER_TEMP\fx60.exe"
+          7z x "$env:RUNNER_TEMP\fx60.exe" "-o$env:RUNNER_TEMP\fx60" -y | Out-Null
+          $core = Get-ChildItem "$env:RUNNER_TEMP\fx60" -Recurse -Directory -Filter core | Select-Object -First 1
+          if (-not $core) { throw "Firefox 'core' folder not found in installer" }
+          Copy-Item "$($core.FullName)\*" $runtime -Recurse -Force
+          if (-not (Test-Path (Join-Path $runtime "xul.dll"))) { throw "xul.dll missing after runtime bundle" }
+          Write-Host "Gecko runtime bundled:"; Get-ChildItem $runtime | Select-Object -First 10 Name
+
+      - name: Upload GhostFox-win-x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: GhostFox-win-x64
+          path: publish/GhostFox
+          retention-days: 14

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GhostFox.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Тёмная тема GhostFox (Модуль 2: переключатель темы/акцента — из BrowserSettings). -->
+            <Color x:Key="GfBackground">#121216</Color>
+            <Color x:Key="GfSurface">#1D1D24</Color>
+            <Color x:Key="GfSurfaceAlt">#26262F</Color>
+            <Color x:Key="GfText">#F2F2F5</Color>
+            <Color x:Key="GfTextDim">#9A9AA5</Color>
+            <Color x:Key="GfAccent">#7C4DFF</Color>
+
+            <Style TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource GfSurfaceAlt}" />
+                <Setter Property="TextColor" Value="{StaticResource GfText}" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Padding" Value="10,6" />
+            </Style>
+            <Style TargetType="Entry">
+                <Setter Property="TextColor" Value="{StaticResource GfText}" />
+                <Setter Property="PlaceholderColor" Value="{StaticResource GfTextDim}" />
+            </Style>
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{StaticResource GfText}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

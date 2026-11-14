@@ -1,0 +1,25 @@
+## Build output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+*.user
+*.suo
+
+## NuGet / local SDK caches (sandbox protocol: keep caches in /tmp, never in repo)
+packages/
+.nuget/
+dotnet_home/
+
+## MAUI / platform intermediates
+*.binlog
+artifacts/
+
+## Gecko runtime dropped next to a local dev build (downloaded by CI, ~100 MB)
+Firefox64/
+Firefox/
+
+## OS / IDE
+.DS_Store
+.vs/
+.idea/
+*.swp

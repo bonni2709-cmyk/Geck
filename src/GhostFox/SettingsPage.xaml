@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="GhostFox.SettingsPage"
+             Title="Settings"
+             BackgroundColor="{StaticResource GfBackground}">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="14">
+            <Label Text="Privacy" FontSize="18" FontAttributes="Bold" />
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="BlockTrackersSwitch" /><Label Text="Block trackers &amp; ads" VerticalOptions="Center" /></HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="JavaScriptSwitch" /><Label Text="Enable JavaScript" VerticalOptions="Center" /></HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="CookiesSwitch" /><Label Text="Accept cookies" VerticalOptions="Center" /></HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="WebRtcSwitch" /><Label Text="Disable WebRTC (IP leak protection)" VerticalOptions="Center" /></HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="FingerprintSwitch" /><Label Text="Resist fingerprinting" VerticalOptions="Center" /></HorizontalStackLayout>
+            <HorizontalStackLayout Spacing="10"><Switch x:Name="ClearOnExitSwitch" /><Label Text="Clear history/session on exit" VerticalOptions="Center" /></HorizontalStackLayout>
+
+            <Label Text="General" FontSize="18" FontAttributes="Bold" />
+            <Label Text="Home page" />
+            <Entry x:Name="HomePageEntry" />
+            <Label Text="User-Agent" />
+            <Entry x:Name="UserAgentEntry" />
+            <Label Text="Custom CSS (injected into every page)" />
+            <Editor x:Name="CustomCssEditor" HeightRequest="90" AutoSize="TextChanges" />
+
+            <Button Text="Save" Clicked="OnSaveClicked" />
+            <Button Text="Close" Clicked="OnCloseClicked" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

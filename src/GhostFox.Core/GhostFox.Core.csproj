@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    GhostFox.Core — вся платформо-независимая логика браузера.
+    НЕ ссылается ни на MAUI, ни на GeckoFX, ни на GeckoView:
+    движок подключается только через GhostFox.Core.Engines.IEngine.
+    Поэтому проект собирается и тестируется на любой ОС (net8.0).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>GhostFox.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

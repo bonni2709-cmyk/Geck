@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    GhostFox — .NET MAUI оболочка.
+    Модуль 1: целевой TFM только Windows (GeckoFX). Android добавляется одной строкой ниже,
+    когда будет подключён GeckoView (см. docs/ANDROID_GECKOVIEW.md) — UI и Core при этом не меняются.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0-windows10.0.19041.0</TargetFrameworks>
+    <!-- Android (Модуль 3): раскомментировать после подключения GeckoView binding:
+    <TargetFrameworks>$(TargetFrameworks);net8.0-android</TargetFrameworks> -->
+
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>GhostFox</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <ApplicationTitle>GhostFox</ApplicationTitle>
+    <ApplicationId>com.ghostfox.browser</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <!-- Неупакованное (unpackaged) WinUI-приложение: обычный .exe без MSIX — проще для CI и портативной раздачи. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+
+    <!-- GeckoFX — обёртка над .NET Framework; AssetTargetFallback разрешает её потребление из net8.0-windows. -->
+    <AssetTargetFallback>$(AssetTargetFallback);net461;net462;net47</AssetTargetFallback>
+    <!-- WinForms нужен как тип контрола GeckoWebBrowser (хостится в WinUI через HWND, см. Platforms/Windows). -->
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GeckoFX 60.0.56 = Firefox/Gecko 60 ESR, x64. Рантайм (папка Firefox64) CI докладывает рядом с exe. -->
+    <PackageReference Include="Geckofx60.64" Version="60.0.56" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GhostFox.Core\GhostFox.Core.csproj" />
+  </ItemGroup>
+
+</Project>
