@@ -19,7 +19,16 @@ jobs:
         with:
           dotnet-version: "8.0.x"
       - name: Test GhostFox.Core
-        run: dotnet test tests/GhostFox.Core.Tests/GhostFox.Core.Tests.csproj -c Release
+        shell: bash
+        run: |
+          set -o pipefail
+          dotnet test tests/GhostFox.Core.Tests/GhostFox.Core.Tests.csproj -c Release 2>&1 | tee test.log || {
+            grep -E "error|Failed |error CS" test.log | head -20 | while IFS= read -r line; do
+              esc=$(printf '%s' "$line" | sed 's/%/%25/g')
+              echo "::warning title=TestError::$esc"
+            done
+            exit 1
+          }
 
   build-windows:
     name: Windows x64 (MAUI + GeckoFX)
