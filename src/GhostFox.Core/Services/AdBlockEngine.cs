@@ -40,7 +40,8 @@ public sealed class AdBlockEngine
         foreach (var raw in listText.Split('\n'))
         {
             var line = raw.Trim();
-            if (line.Length == 0 || line[0] == '!' || line[0] == '[' || line[0] == '#') continue;
+            if (line.Length == 0 || line[0] == '!' || line[0] == '[') continue;
+            if (line[0] == '#' && !line.StartsWith("##", StringComparison.Ordinal)) continue; // комментарий, но не косметическое правило ##
 
             // --- косметика ---
             var cosmeticMarker = line.IndexOf("##", StringComparison.Ordinal);
