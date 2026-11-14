@@ -33,6 +33,9 @@
     <AssetTargetFallback>$(AssetTargetFallback);net461;net462;net47</AssetTargetFallback>
     <!-- WinForms нужен как тип контрола GeckoWebBrowser (хостится в WinUI через HWND, см. Platforms/Windows). -->
     <UseWindowsForms>true</UseWindowsForms>
+    <!-- Пакет Geckofx60.64 содержит также Geckofx-Wpf и требует WPF-сборки в списке референсов. -->
+    <UseWPF>true</UseWPF>
+    <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
   </PropertyGroup>
 
   <ItemGroup>
