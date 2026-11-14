@@ -122,7 +122,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          dotnet publish src/GhostFox/GhostFox.csproj -f net8.0-android -c Release 2>&1 | tee android.log || {
+          dotnet publish src/GhostFox/GhostFox.csproj -f net8.0-android -c Release -p:AndroidPackageFormat=apk 2>&1 | tee android.log || {
             grep -E "error" android.log | head -20 | while IFS= read -r line; do
               esc=$(printf '%s' "$line" | sed 's/%/%25/g'); echo "::warning title=AndroidError::$esc"
             done
@@ -132,5 +132,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GhostFox-android
-          path: src/GhostFox/bin/Release/net8.0-android/**/*.apk
+          path: |
+            src/GhostFox/bin/Release/net8.0-android/**/*.apk
+            src/GhostFox/bin/Release/net8.0-android/**/*.aab
           retention-days: 14
