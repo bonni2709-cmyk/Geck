@@ -128,11 +128,15 @@ jobs:
             done
             exit 1
           }
+      - name: Locate package (diagnostics)
+        if: always()
+        shell: bash
+        run: |
+          found=$(find src/GhostFox/bin src/GhostFox/obj -name '*.apk' -o -name '*.aab' 2>/dev/null | head -10 | tr '\n' ' ')
+          echo "::warning title=AndroidPkg::${found:-none}"
       - name: Upload GhostFox-android
         uses: actions/upload-artifact@v4
         with:
           name: GhostFox-android
-          path: |
-            src/GhostFox/bin/Release/net8.0-android/**/*.apk
-            src/GhostFox/bin/Release/net8.0-android/**/*.aab
+          path: src/GhostFox/bin/Release/net8.0-android/**
           retention-days: 14
