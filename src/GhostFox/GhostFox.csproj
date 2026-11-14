@@ -29,14 +29,14 @@
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 
-    <!-- GeckoFX — обёртка над .NET Framework; AssetTargetFallback разрешает её потребление из net8.0-windows. -->
-    <AssetTargetFallback>$(AssetTargetFallback);net461;net462;net47</AssetTargetFallback>
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- GeckoFX 60.0.56 = Firefox/Gecko 60 ESR, x64. Рантайм (папка Firefox64) CI докладывает рядом с exe. -->
-    <PackageReference Include="Geckofx60.64" Version="60.0.56" />
+    <!-- GeckoFX 60.0.56 = Firefox/Gecko 60 ESR, x64. Пакет нужен как поставка DLL и рантайма:
+         NuGet НЕ выбирает его lib/net45 ассеты для net8.0 (в project.assets.json только build),
+         поэтому сами сборки подключаем явными Reference ниже. -->
+    <PackageReference Include="Geckofx60.64" Version="60.0.56" PrivateAssets="All" ExcludeAssets="build;contentfiles" />
     <!-- GeckoWebBrowser — WinForms-контрол. UseWindowsForms=true НЕЛЬЗЯ: WindowsDesktop SDK начнёт
          обрабатывать MAUI XAML как WPF Page (ошибка MC6000). Поэтому только FrameworkReference:
          даёт System.Windows.Forms для компиляции/рантайма, не включая WPF XAML-пайплайн. -->
@@ -47,13 +47,14 @@
     <ProjectReference Include="..\GhostFox.Core\GhostFox.Core.csproj" />
   </ItemGroup>
 
-  <!-- Пакет Geckofx60.64 тащит за собой Geckofx-Wpf.dll, которой нужны PresentationCore/
-       PresentationFramework. WPF-вариант контрола нам не нужен (используем WinForms-контрол),
-       поэтому вырезаем эту сборку из референсов ДО ResolveAssemblyReferences. -->
-  <Target Name="RemoveGeckoWpfReference" BeforeTargets="ResolveAssemblyReferences">
-    <ItemGroup>
-      <Reference Remove="@(Reference)" Condition="'%(Reference.Filename)' == 'Geckofx-Wpf'" />
-    </ItemGroup>
-  </Target>
+  <!-- Явные референсы на GeckoFX из restored NuGet-кэша (см. комментарий у PackageReference). -->
+  <ItemGroup>
+    <Reference Include="Geckofx-Core">
+      <HintPath>$(NuGetPackageRoot)geckofx60.64\60.0.56\lib\net45\Geckofx-Core.dll</HintPath>
+    </Reference>
+    <Reference Include="Geckofx-Winforms">
+      <HintPath>$(NuGetPackageRoot)geckofx60.64\60.0.56\lib\net45\Geckofx-Winforms.dll</HintPath>
+    </Reference>
+  </ItemGroup>
 
 </Project>
